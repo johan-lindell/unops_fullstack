@@ -41,7 +41,7 @@ def train():
         "algorithm": f"Sentence-Transformer ({ENCODER_MODEL}) + Logistic Regression",
         "encoder": ENCODER_MODEL,
         "f1": round(f1_score(y_val, y_pred, average="macro"), 4),
-        "n_train": len(df),
+        "n_train": len(X_train),
     }
     os.makedirs(os.path.dirname(ARTIFACT_PATH), exist_ok=True)
     joblib.dump({"classifier": clf, "model_info": model_info}, ARTIFACT_PATH)

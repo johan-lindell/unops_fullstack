@@ -18,18 +18,19 @@ _DEFAULT_MODEL_INFO = {
 
 def _load():
     global _encoder, _clf
-    if _encoder is None:
-        if not os.path.exists(ARTIFACT_PATH):
-            raise FileNotFoundError(
-                f"Model artifact not found at {ARTIFACT_PATH}. "
-                "Run `python model/train.py` to train the model."
-            )
-        bundle = joblib.load(ARTIFACT_PATH)
-        _clf = bundle["classifier"]
+    if _encoder is not None:
+        return
+    if not os.path.exists(ARTIFACT_PATH):
+        raise FileNotFoundError(
+            f"Model artifact not found at {ARTIFACT_PATH}. "
+            "Run `python model/train.py` to train the model."
+        )
+    bundle = joblib.load(ARTIFACT_PATH)
+    _clf = bundle["classifier"]
 
-        from sentence_transformers import SentenceTransformer
-        encoder_name = bundle.get("model_info", {}).get("encoder", "all-MiniLM-L6-v2")
-        _encoder = SentenceTransformer(encoder_name)
+    from sentence_transformers import SentenceTransformer
+    encoder_name = bundle.get("model_info", {}).get("encoder", "all-MiniLM-L6-v2")
+    _encoder = SentenceTransformer(encoder_name)
 
 
 def _load_model_info() -> dict:
@@ -49,3 +50,23 @@ def predict_single(text: str) -> dict:
     label = int(_clf.predict(embedding)[0])
     confidence = float(_clf.predict_proba(embedding)[0][label])
     return {"label": label, "label_name": LABEL_NAMES[label], "confidence": confidence}
+
+
+def predict_batch(texts: list[str]) -> list[dict]:
+    _load()
+    cleaned = [t.strip() if t and t.strip() else "" for t in texts]
+    non_empty_idx = [i for i, t in enumerate(cleaned) if t]
+    results: list[dict] = [
+        {"label": 0, "label_name": LABEL_NAMES[0], "confidence": 1.0}
+        for _ in texts
+    ]
+    if not non_empty_idx:
+        return results
+    embeddings = _encoder.encode([cleaned[i] for i in non_empty_idx])
+    labels = _clf.predict(embeddings)
+    probas = _clf.predict_proba(embeddings)
+    for pos, idx in enumerate(non_empty_idx):
+        label = int(labels[pos])
+        confidence = float(probas[pos][label])
+        results[idx] = {"label": label, "label_name": LABEL_NAMES[label], "confidence": confidence}
+    return results

@@ -3,7 +3,7 @@ import sys
 
 import pandas as pd
 
-from model.predict import predict_single
+from model.predict import predict_batch
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
         sys.exit(f"Input CSV must have a 'text' or 'tweet' column. Found: {list(df.columns)}")
 
     print(f"Running predictions on {len(df)} rows...")
-    results = [predict_single(str(t)) for t in df[text_col]]
+    results = predict_batch([str(t) for t in df[text_col]])
 
     out = pd.DataFrame({
         "text": df[text_col],
