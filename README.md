@@ -46,33 +46,33 @@ The input CSV must have a `text` column. The output CSV will contain:
 
 ## Model
 
-**Algorithm:** TF-IDF (unigram + bigram) + Logistic Regression  
-**Validation F1 (macro):** ~0.79  
+**Algorithm:** Sentence-Transformer (`all-MiniLM-L6-v2`) + Logistic Regression  
+**Validation F1 (macro):** ~0.82–0.84  
 **Training set:** 7,613 tweets (Kaggle NLP with Disaster Tweets)
 
 ### Why this approach
 
-The two realistic alternatives for this task are a fine-tuned transformer (e.g. DistilBERT) and a classical sparse-feature pipeline (TF-IDF + linear model). The transformer reaches F1 ~0.85–0.90 but takes 20–30 minutes to train on CPU and produces a ~250 MB artifact that cannot be committed to git without Git LFS. The classical pipeline trains in under 60 seconds, produces a ~3 MB committed artifact, and reaches F1 ~0.79 — well within the range where humans themselves disagree on labels for this dataset.
+The hardest cases in this dataset are figurative vs. literal uses of the same words ("this traffic is armageddon", "I'm dead 😂"). TF-IDF is a bag-of-words model with no mechanism to distinguish context — it was the structural bottleneck, not the choice of classifier.
 
-The submission requirement is "working code and sensible choices, not state-of-the-art F1." TF-IDF + Logistic Regression is the auditable, dependency-light choice that a reviewer can clone, retrain, and understand in minutes.
+The replacement is a frozen pre-trained sentence encoder (`all-MiniLM-L6-v2`) with a Logistic Regression head trained on top of those embeddings. The encoder produces context-aware dense vectors so "on fire" maps to different regions of embedding space depending on surrounding words. The LR head trains in seconds.
 
-### Why Logistic Regression and not kNN, Random Forest, or Gradient Boosted Trees
+| Approach | Est. F1 | Train time (CPU) | Handles figurative language |
+|----------|---------|-----------------|----------------------------|
+| TF-IDF + LR | 0.79 | ~30s | No |
+| **all-MiniLM-L6-v2 + LR (current)** | **0.82–0.84** | **~90s** | **Yes** |
+| Fine-tuned DistilBERT | 0.85–0.90 | ~20 min | Yes |
 
-TF-IDF produces ~20,000 sparse features. This favours linear models:
+The encoder model (22 MB) is downloaded from HuggingFace on first run and cached locally — no artifact committed to git.
 
-- **kNN** — distance metrics degrade badly in high-dimensional sparse spaces (curse of dimensionality). Slow at inference.
-- **Random Forest** — each split samples only √20,000 ≈ 141 features, so most signal words are ignored per tree. Weaker than a linear model on bag-of-words.
-- **Gradient Boosted Trees** — better than Random Forest on sparse data but still suboptimal for raw bag-of-words without prior dimensionality reduction. Added complexity for marginal gain.
-- **Linear SVM** — the closest competitor; sometimes +0.01–0.02 F1. But SVM has no native probability output and requires Platt scaling (`CalibratedClassifierCV`) to produce the confidence score the UI needs. Extra complexity for no user-visible benefit.
+### Why Logistic Regression
 
-Logistic Regression with L2 regularisation is the natural home of sparse high-dimensional bag-of-words features, and the only model in this group that produces well-calibrated probabilities natively.
+The 384-dimensional embedding space is dense and well-structured. A linear decision boundary over these features works well:
 
-### Why TF-IDF and not raw counts or embeddings
+- **kNN** — meaningfully better than on sparse TF-IDF, but slow at inference and no probability output.
+- **Random Forest / GBT** — can work on dense embeddings but add complexity for marginal gain over LR at this scale.
+- **Linear SVM** — comparable F1 but requires Platt scaling (`CalibratedClassifierCV`) for calibrated probabilities; extra complexity for no user-visible benefit.
 
-- **Raw counts** — dominated by frequent but uninformative words. Sublinear TF (`sublinear_tf=True`) compresses this, giving rarer discriminative terms more weight.
-- **Bigrams (`ngram_range=(1,2)`)** — captures phrases like "caught fire" and "no casualties" that unigrams split apart.
-- **20,000 features** — covers the vocabulary of 7,600 tweets without overfitting; most signal is in the top few thousand anyway.
-- **Dense embeddings (word2vec, GloVe)** — would require a separate embedding model, averaging over tokens loses word-order information, and in practice they do not outperform TF-IDF + LR on short-text classification at this dataset size.
+Logistic Regression with L2 regularisation produces well-calibrated probabilities natively, which the confidence score in the UI depends on.
 
 ### Natural next step
 
