@@ -15,7 +15,7 @@ uv sync
 uv run python model/train.py
 ```
 
-`uv sync` reads `pyproject.toml` and `uv.lock` to create a virtual environment and install all pinned dependencies. Python 3.12 is pinned in `.python-version` and managed automatically by uv. Training completes in under 60 seconds on CPU and saves the artifact to `model/artifacts/model.joblib`.
+`uv sync` reads `pyproject.toml` and `uv.lock` to create a virtual environment and install all pinned dependencies. Python 3.12 is pinned in `.python-version` and managed automatically by uv. Training completes in under 90 seconds on CPU and saves the artifact to `model/artifacts/model.joblib`.
 
 ## Running the web UI
 
@@ -62,7 +62,7 @@ The replacement is a frozen pre-trained sentence encoder (`all-MiniLM-L6-v2`) wi
 | **all-MiniLM-L6-v2 + LR (current)** | **0.82–0.84** | **~90s** | **Yes** |
 | Fine-tuned DistilBERT | 0.85–0.90 | ~20 min | Yes |
 
-The encoder model (22 MB) is downloaded from HuggingFace on first run and cached locally — no artifact committed to git.
+The encoder model (22 MB) is downloaded from HuggingFace on first run and cached locally. The artifact (`model.joblib`) stores only the classifier and metadata — the encoder is not bundled.
 
 ### Why Logistic Regression
 
@@ -115,9 +115,9 @@ def predict_single(text: str) -> dict:
 
 ```python
 MODEL_INFO = {
-    "algorithm": "TF-IDF + Logistic Regression",
-    "f1": 0.7922,
-    "n_train": 7613,
+    "algorithm": "Sentence-Transformer (all-MiniLM-L6-v2) + Logistic Regression",
+    "f1": 0.8300,   # representative; actual value written at training time
+    "n_train": 6090,  # 80% of 7,613
 }
 ```
 
