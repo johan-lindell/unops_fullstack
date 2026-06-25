@@ -1,12 +1,8 @@
-import json
 import os
 
 import joblib
 
-_DIR = os.path.dirname(__file__)
-_VECTORIZER_PATH = os.path.join(_DIR, "tfidf_vectorizer.joblib")
-_CLASSIFIER_PATH = os.path.join(_DIR, "logreg_classifier.joblib")
-_MODEL_INFO_PATH = os.path.join(_DIR, "model_info.json")
+ARTIFACT_PATH = os.path.join(os.path.dirname(__file__), "artifacts", "model.joblib")
 
 _vectorizer = None
 _clf = None
@@ -15,19 +11,21 @@ _clf = None
 def _load():
     global _vectorizer, _clf
     if _vectorizer is None:
-        if not os.path.exists(_VECTORIZER_PATH) or not os.path.exists(_CLASSIFIER_PATH):
+        if not os.path.exists(ARTIFACT_PATH):
             raise FileNotFoundError(
-                f"Model artifacts not found in {_DIR}/. "
+                f"Model artifact not found at {ARTIFACT_PATH}. "
                 "Run `python model/train.py` to train the model."
             )
-        _vectorizer = joblib.load(_VECTORIZER_PATH)
-        _clf = joblib.load(_CLASSIFIER_PATH)
+        bundle = joblib.load(ARTIFACT_PATH)
+        _vectorizer = bundle["vectorizer"]
+        _clf = bundle["classifier"]
 
 
 def _load_model_info() -> dict:
-    if os.path.exists(_MODEL_INFO_PATH):
-        with open(_MODEL_INFO_PATH) as f:
-            return json.load(f)
+    if os.path.exists(ARTIFACT_PATH):
+        return joblib.load(ARTIFACT_PATH).get(
+            "model_info", {"algorithm": "TF-IDF + Logistic Regression", "f1": 0.0, "n_train": 0}
+        )
     return {"algorithm": "TF-IDF + Logistic Regression", "f1": 0.0, "n_train": 0}
 
 

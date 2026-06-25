@@ -1,4 +1,3 @@
-import json
 import os
 
 import pandas as pd
@@ -10,6 +9,7 @@ import joblib
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "train.csv")
 MODEL_DIR = os.path.dirname(__file__)
+ARTIFACT_PATH = os.path.join(MODEL_DIR, "artifacts", "model.joblib")
 
 
 def train():
@@ -30,18 +30,14 @@ def train():
     y_pred = clf.predict(X_val_vec)
     print(classification_report(y_val, y_pred, target_names=["not disaster", "disaster"]))
 
-    joblib.dump(vectorizer, os.path.join(MODEL_DIR, "tfidf_vectorizer.joblib"))
-    joblib.dump(clf, os.path.join(MODEL_DIR, "logreg_classifier.joblib"))
-
     model_info = {
         "algorithm": "TF-IDF + Logistic Regression",
         "f1": round(f1_score(y_val, y_pred, average="macro"), 4),
-        "n_train": len(X_train),
+        "n_train": len(df),
     }
-    with open(os.path.join(MODEL_DIR, "model_info.json"), "w") as f:
-        json.dump(model_info, f)
-
-    print(f"Artifacts saved to {MODEL_DIR}/")
+    os.makedirs(os.path.dirname(ARTIFACT_PATH), exist_ok=True)
+    joblib.dump({"vectorizer": vectorizer, "classifier": clf, "model_info": model_info}, ARTIFACT_PATH)
+    print(f"Artifact saved to {ARTIFACT_PATH}")
 
 
 if __name__ == "__main__":
