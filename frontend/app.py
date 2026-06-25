@@ -42,26 +42,23 @@ with st.sidebar:
         "- < 60%: uncertain — treat with caution"
     )
 
+col_predict, col_example = st.columns([2, 1])
+
+with col_example:
+    if st.button("Load example", use_container_width=True):
+        import random
+        st.session_state["tweet_input"] = random.choice(EXAMPLE_TWEETS)
+
 tweet_text = st.text_area(
     "Tweet text",
     height=120,
     placeholder="e.g. Forest fire near La Ronge Sask. Canada",
     help="Paste any short text and the model will classify it.",
+    key="tweet_input",
 )
-
-col_predict, col_example = st.columns([2, 1])
 
 with col_predict:
     predict_clicked = st.button("Analyze", type="primary", use_container_width=True)
-
-with col_example:
-    if st.button("Load example", use_container_width=True):
-        import random
-        st.session_state["example"] = random.choice(EXAMPLE_TWEETS)
-        st.rerun()
-
-if "example" in st.session_state and not tweet_text:
-    tweet_text = st.session_state["example"]
 
 if predict_clicked:
     if not tweet_text or not tweet_text.strip():
